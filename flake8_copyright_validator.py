@@ -1,4 +1,5 @@
 import difflib
+import re
 from typing import List, Tuple
 
 import importlib_metadata
@@ -28,6 +29,11 @@ class CopyrightValidator:
             parse_from_config=True,
         )
         parser.add_option(
+            '--copyright-regex',
+            help='a text to look for in files',
+            parse_from_config=True,
+        )
+        parser.add_option(
             '--update',
             help='defines if files should be updated with provided copyright text',
             action='store_true'
@@ -35,7 +41,8 @@ class CopyrightValidator:
         parser.add_option(
             '--detailed-output',
             help='provides detailed output',
-            action='store_true'
+            action='store_true',
+            parse_from_config=True,
         )
         parser.add_option(
             '--bytes-to-read',
@@ -56,16 +63,18 @@ class CopyrightValidator:
         )
 
     @classmethod
-    def parse_options(cls, options):
+    def parse_options(cls, manager, options, files):
         cls.detailed_output = options.detailed_output
         cls.update = options.update
         if options.symbols_to_replace:
             cls.symbols_to_replace = options.symbols_to_replace
         if options.lines_to_exclude:
             cls.lines_to_exclude = cls._parse_lines(options.lines_to_exclude, cls.symbols_to_replace)
-        cls.copyright_text_list = cls._parse_lines(options.copyright_text, cls.symbols_to_replace)
-        cls.copyright_text = '\n'.join(cls.copyright_text_list)
-
+        if options.copyright_text:
+            cls.copyright_text_list = cls._parse_lines(options.copyright_text, cls.symbols_to_replace)
+            cls.copyright_text = '\n'.join(cls.copyright_text_list)
+        if options.copyright_regex:
+            cls.copyright_regex = cls._parse_lines(options.copyright_regex, cls.symbols_to_replace)
         if options.bytes_to_read:
             cls.bytes_to_read = options.bytes_to_read
 
@@ -83,14 +92,27 @@ class CopyrightValidator:
             for excluded_line in self.lines_to_exclude:
                 if lines[0].startswith(excluded_line):
                     return
-            if lines[0:len(license_lines)] != license_lines:
-                diff = '\n'.join([line for line in difflib.unified_diff(license_lines, lines[0:len(license_lines)])])
-                err_msg = f'NCF100 No copyright found\n{diff if self.detailed_output else ""}'
-                yield 1, 0, err_msg, type(self)
-            if self.update and diff:
-                content = self.copyright_text + '\n' + content
-                w.seek(0)
-                w.write(content)
+            if self.copyright_regex is not None:
+                if len(self.copyright_regex) > len(lines):
+                    yield 1, 0, "NCF101 Copyright length mismatch", type(self)
+                    return
+                for i in range(0, len(self.copyright_regex)):
+                    line = lines[i]
+                    regex = self.copyright_regex[i]
+                    if not re.search(regex, line):
+                        err_msg = f'NCF102 Copyright regex mismatch\n{line if self.detailed_output else ""}'
+                        yield 1, 0, err_msg, type(self)
+                        return
+            else:
+                if lines[0:len(license_lines)] != license_lines:
+                    diff = '\n'.join(
+                        [line for line in difflib.unified_diff(license_lines, lines[0:len(license_lines)])])
+                    err_msg = f'NCF100 No copyright found\n{diff if self.detailed_output else ""}'
+                    yield 1, 0, err_msg, type(self)
+                if self.update and diff:
+                    content = self.copyright_text + '\n' + content
+                    w.seek(0)
+                    w.write(content)
 
     @staticmethod
     def _parse_lines(lines_from_options, symbols_to_replace=None) -> List[str]:
