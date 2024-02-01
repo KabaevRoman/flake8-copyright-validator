@@ -20,7 +20,7 @@ copyright-text = 'Example copyright text'
 
 ### Available flags
 
-* `--update` If difference or lack of copyright was found in file writes copyright text at the beginning of python
+* `--update` If copyright error was found in file writes copyright text at the beginning of python
   file.  
   If specified, value of bytes-to-read is ignored. Careful with this option if your header is incorrect it will add one
   more on top of wrong header.
@@ -32,12 +32,16 @@ copyright-text = 'Example copyright text'
   specifying  
   copyright text that starts with `#`. You can change it if you don't need it with this flag. It is comma separated
   list.
+* `--copyright-regex` If provided will try to validate line with regular expression one to one.
 
 ## How it works
 
 Plugin splits copyright text by end of line (\n), and reads 2048 bytes of file by default.  
 If differences were found it yields `NCF100 No copyright found`.  
-Plugin does not use comma separated lists for text
+If `--copyright-regex` is provided it yields `NCF102 Copyright regex mismatch` and points to the line that was 
+mismatched.  
+Plugin does not use comma separated lists for text  
+
 
 ## Complete example of _setup.cfg_
 
@@ -50,6 +54,13 @@ lines-to-exclude =
 copyright-text = 
     '# Example - Example'
     '# Copyright (C) Example'
+    '#'
+    '# This program is free software: you can redistribute it and/or modify'
+    '# it under the terms of the GNU Affero General Public License as published'
+
+copyright-regex = 
+    '# Example - Example'
+    '# Copyright \(C\) Example'
     '#'
     '# This program is free software: you can redistribute it and/or modify'
     '# it under the terms of the GNU Affero General Public License as published'
