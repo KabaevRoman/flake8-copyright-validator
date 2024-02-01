@@ -27,8 +27,8 @@ setup(
     url='https://github.com/KabaevRoman/flake8-copyright-validator',
     python_requires='>=3.7',
     install_requires=[
-        'setuptools',
-        'flake8',
-        'importlib-metadata'
+        'setuptools>=58.1.0',
+        'flake8>=7.0.0',
+        'importlib-metadata>=7.0.1'
     ],
 )
